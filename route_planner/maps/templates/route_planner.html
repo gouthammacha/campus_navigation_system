@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Planner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+    <style>
+        #map { height: 600px; }
+    </style>
+</head>
+<body>
+
+<h2>Route Planner</h2>
+
+<label for="start1">Start 1:</label>
+<select id="start1"><option value="">Select Start 1</option></select>
+
+<label for="start2">Start 2:</label>
+<select id="start2"><option value="">Select Start 2</option></select>
+
+<label for="end1">Destination 1:</label>
+<select id="end1"><option value="">Select Destination 1</option></select>
+
+<label for="end2">Destination 2:</label>
+<select id="end2"><option value="">Select Destination 2</option></select>
+
+<button onclick="startNavigation()">Start Navigation</button>
+
+<div id="map"></div>
+
+<script>
+    let map = L.map('map').setView([17.282258, 78.553091], 18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let waypoints = JSON.parse('{{ waypoints_json|escapejs }}');
+    let route1 = JSON.parse('{{ route1_json|escapejs }}');
+    let route2 = JSON.parse('{{ route2_json|escapejs }}');
+    let lastLocation = "{{ last_location }}";
+
+    // Populate dropdowns
+    let dropdowns = ["start1", "start2", "end1", "end2"];
+    dropdowns.forEach(id => {
+        let dropdown = document.getElementById(id);
+        for (let location in waypoints) {
+            dropdown.add(new Option(location, location));
+        }
+    });
+
+    if (lastLocation) {
+        document.getElementById("start1").value = lastLocation;
+    }
+
+    function startNavigation() {
+        let start1 = document.getElementById("start1").value;
+        let start2 = document.getElementById("start2").value;
+        let end1 = document.getElementById("end1").value;
+        let end2 = document.getElementById("end2").value;
+
+        if (!start1 || !start2 || !end1 || !end2) {
+            alert("Please select all locations.");
+            return;
+        }
+
+        window.location.href = `?start1=${start1}&start2=${start2}&end1=${end1}&end2=${end2}`;
+    }
+
+    // Display waypoints
+    Object.entries(waypoints).forEach(([name, [lat, lon]]) => {
+        L.marker([lat, lon]).addTo(map).bindPopup(name);
+    });
+
+    let carIcon = L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png", iconSize: [32, 32] });
+    let carMarker = null;  // Single car marker
+
+    function animateCar(route, color, callback) {
+        if (!route.length) {
+            if (callback) callback();
+            return;
+        }
+
+        let index = 0;
+        let speed = 500;
+
+        // Draw route
+        L.polyline(route.map(([lat, lon]) => [lon, lat]), { color: color, weight: 5 }).addTo(map);
+
+        // If carMarker doesn't exist, create it
+        if (!carMarker) {
+            carMarker = L.marker([route[0][1], route[0][0]], { icon: carIcon }).addTo(map);
+        }
+
+        function moveCar() {
+            if (index >= route.length) {
+                if (callback) setTimeout(callback, 2000); // 2-second pause
+                return;
+            }
+
+            carMarker.setLatLng([route[index][1], route[index][0]]);
+            index++;
+
+            setTimeout(moveCar, speed);
+        }
+
+        moveCar();
+    }
+
+    function startAnimation() {
+        animateCar(route1, "orange", () => {
+            animateCar(route2, "green");
+        });
+    }
+
+    if (route1.length || route2.length) {
+        startAnimation();
+    }
+
+</script>
+
+</body>
+</html>
