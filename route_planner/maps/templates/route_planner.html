@@ -35,8 +35,7 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     let waypoints = JSON.parse('{{ waypoints_json|escapejs }}');
-    let route1 = JSON.parse('{{ route1_json|escapejs }}');
-    let route2 = JSON.parse('{{ route2_json|escapejs }}');
+    let route = JSON.parse('{{ route_json|escapejs }}');
     let lastLocation = "{{ last_location }}";
 
     // Populate dropdowns
@@ -72,51 +71,34 @@
     });
 
     let carIcon = L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png", iconSize: [32, 32] });
-    let carMarker = null;  // Single car marker
+    let carMarker = null;
 
-    function animateCar(route, color, callback) {
-        if (!route.length) {
-            if (callback) callback();
-            return;
-        }
+    function animateCar(route, color) {
+        if (!route.length) return;
 
         let index = 0;
         let speed = 500;
-
-        // Draw route
         L.polyline(route.map(([lat, lon]) => [lon, lat]), { color: color, weight: 5 }).addTo(map);
 
-        // If carMarker doesn't exist, create it
         if (!carMarker) {
             carMarker = L.marker([route[0][1], route[0][0]], { icon: carIcon }).addTo(map);
         }
 
         function moveCar() {
-            if (index >= route.length) {
-                if (callback) setTimeout(callback, 2000); // 2-second pause
-                return;
-            }
-
+            if (index >= route.length) return;
             carMarker.setLatLng([route[index][1], route[index][0]]);
             index++;
-
             setTimeout(moveCar, speed);
         }
 
         moveCar();
     }
 
-    function startAnimation() {
-        animateCar(route1, "orange", () => {
-            animateCar(route2, "green");
-        });
+    if (route.length) {
+        animateCar(route, "blue");
     }
-
-    if (route1.length || route2.length) {
-        startAnimation();
-    }
-
 </script>
+
 
 </body>
 </html>

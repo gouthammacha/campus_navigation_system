@@ -34,30 +34,49 @@ def get_route(coords):
         print(f"OpenRouteService API error: {e}")
     return None
 
+def optimize_route(locations):
+    """Get the optimized order of waypoints for shortest travel distance."""
+    try:
+        response = client.optimization(
+            jobs=[{"id": i, "location": [waypoints[loc][1], waypoints[loc][0]]} for i, loc in enumerate(locations)],
+            vehicles=[{
+                "id": 0,
+                "profile": "foot-walking",
+                "start": [waypoints[locations[0]][1], waypoints[locations[0]][0]],
+                "end": [waypoints[locations[-1]][1], waypoints[locations[-1]][0]]
+            }]
+        )
+        optimized_order = [locations[job["id"]] for job in sorted(response["routes"][0]["steps"], key=lambda x: x["arrival"])]
+        return optimized_order
+    except Exception as e:
+        print(f"Route optimization error: {e}")
+        return locations
+
 def route_planner(request):
     locations = [loc.title() for loc in waypoints.keys()]
     last_location = request.session.get("last_location", None)
 
-    start1 = request.GET.get("start1", "").lower()
-    start2 = request.GET.get("start2", "").lower()
-    end1 = request.GET.get("end1", "").lower()
-    end2 = request.GET.get("end2", "").lower()
+    selected_locations = [
+        request.GET.get("start1", "").lower(),
+        request.GET.get("start2", "").lower(),
+        request.GET.get("end1", "").lower(),
+        request.GET.get("end2", "").lower(),
+    ]
+    selected_locations = [loc for loc in selected_locations if loc in waypoints]
 
-    if last_location and start1:
-        start1 = last_location  
+    if last_location and last_location in waypoints:
+        selected_locations.insert(0, last_location)  # Start from last location
 
-    route1 = route2 = []
-    if start1 and start2 and end1 and end2:
-        route1 = get_route([waypoints[start1], waypoints[start2]])  # First path (Blue)
-        route2 = get_route([waypoints[start2], waypoints[end1], waypoints[end2]])  # Second path (Red)
-
-        if route2:
-            request.session["last_location"] = end2  
+    if len(selected_locations) > 1:
+        optimized_route = optimize_route(selected_locations)
+        route = get_route([waypoints[loc] for loc in optimized_route])
+        request.session["last_location"] = optimized_route[-1]  # Store the last visited location
+    else:
+        route = []
 
     return render(request, "route_planner.html", {
         "locations": locations,
         "waypoints_json": json.dumps(waypoints),
-        "route1_json": json.dumps(route1),
-        "route2_json": json.dumps(route2),
+        "route_json": json.dumps(route),
         "last_location": last_location
     })
