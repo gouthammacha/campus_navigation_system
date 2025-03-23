@@ -73,30 +73,45 @@
     let carIcon = L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png", iconSize: [32, 32] });
     let carMarker = null;
 
-    function animateCar(route, color) {
-        if (!route.length) return;
+    function animateCar(route1, route2) {
+    if (!route1.length || !route2.length) return;
 
-        let index = 0;
-        let speed = 500;
-        L.polyline(route.map(([lat, lon]) => [lon, lat]), { color: color, weight: 5 }).addTo(map);
+    let speed = 500; // Animation speed
 
-        if (!carMarker) {
-            carMarker = L.marker([route[0][1], route[0][0]], { icon: carIcon }).addTo(map);
+    // Draw both routes with different colors
+    let polyline1 = L.polyline(route1.map(([lat, lon]) => [lon, lat]), { color: "blue", weight: 5 }).addTo(map);
+    let polyline2 = L.polyline(route2.map(([lat, lon]) => [lon, lat]), { color: "red", weight: 5 }).addTo(map);
+
+    let carMarker = L.marker([route1[0][1], route1[0][0]], { icon: carIcon }).addTo(map);
+
+    function moveCar(route, polyline, index, callback) {
+        if (index >= route.length) {
+            if (callback) callback(); // Move to the next route
+            return;
         }
 
-        function moveCar() {
-            if (index >= route.length) return;
-            carMarker.setLatLng([route[index][1], route[index][0]]);
-            index++;
-            setTimeout(moveCar, speed);
-        }
+        // Update car position
+        carMarker.setLatLng([route[index][1], route[index][0]]);
 
-        moveCar();
+        // Remove past polyline points to simulate gradual disappearance
+        let newPath = route.slice(index); // Keep only the remaining part of the route
+        polyline.setLatLngs(newPath.map(([lat, lon]) => [lon, lat]));
+
+        setTimeout(() => moveCar(route, polyline, index + 1, callback), speed);
     }
 
-    if (route.length) {
-        animateCar(route, "blue");
-    }
+    // Move car on the first route, then move on the second route
+    moveCar(route1, polyline1, 0, () => moveCar(route2, polyline2, 0, null));
+}
+
+// Ensure we have two separate routes
+if (route.length >= 2) {
+    let midIndex = Math.floor(route.length / 2);
+    let route1 = route.slice(0, midIndex);
+    let route2 = route.slice(midIndex);
+    animateCar(route1, route2);
+}
+
 </script>
 
 
