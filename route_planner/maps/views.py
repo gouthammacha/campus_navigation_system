@@ -34,39 +34,53 @@ def get_route(coords):
         print(f"OpenRouteService API error: {e}")
     return None
 
-def optimize_route(start1, start2, end1, end2, last_location=None):
-    """Get the shortest path covering all selected locations efficiently."""
+def optimize_route(prev_dest, start1, start2, end1, end2):
+    """Optimize route by considering the previous destination and efficient drop-offs."""
     try:
         locations = [start1, start2, end1, end2]
-        if last_location:
-            locations.insert(0, last_location)  # Start from the last visited location
+        if prev_dest:
+            locations.insert(0, prev_dest)  # Start from previous destination if available
 
         response = client.optimization(
-            jobs=[{"id": i, "location": [waypoints[loc][1], waypoints[loc][0]]} for i, loc in enumerate(locations)],
+            jobs=[
+                {"id": i, "location": [waypoints[loc][1], waypoints[loc][0]], "priority": 1 if i < 2 else 0}
+                for i, loc in enumerate(locations)
+            ],
             vehicles=[{
                 "id": 0,
                 "profile": "foot-walking",
                 "start": [waypoints[locations[0]][1], waypoints[locations[0]][0]],
-                "capacity": [1],  # Single vehicle handling two passengers
-                "skills": [1]  # Assigning the vehicle a skill
+                "capacity": [2],  # Can carry both passengers
+                "skills": [1],
             }]
         )
 
-        # Extract optimized order of locations based on shortest travel path
-        optimized_order = [locations[job["id"]] for job in sorted(response["routes"][0]["steps"], key=lambda x: x["arrival"])]
-        
+        # Get optimized order
+        ordered_locations = [locations[job["id"]] for job in sorted(response["routes"][0]["steps"], key=lambda x: x["arrival"])]
+
+        # Ensure intermediate drop-off if needed
+        optimized_order = []
+        picked_up = set()
+
+        for i, loc in enumerate(ordered_locations):
+            if loc in (start1, start2):  
+                picked_up.add(loc)  # Mark pickup as done
+            elif loc in (end1, end2):  
+                if (start1 in picked_up and loc == end1) or (start2 in picked_up and loc == end2):
+                    optimized_order.append(loc)  # Drop if picked up
+            optimized_order.append(loc)  
+
         return optimized_order
 
     except Exception as e:
         print(f"Route optimization error: {e}")
-        return [start1, start2, end1, end2]  # Fallback to original order
+        return [prev_dest, start1, start2, end1, end2]  # Fallback order
 
 
 def route_planner(request):
     locations = [loc.title() for loc in waypoints.keys()]
-    last_location = request.session.get("last_location", None)
+    prev_dest = request.session.get("last_location", None)
 
-    # Get selected locations from request
     start1 = request.GET.get("start1", "").lower()
     start2 = request.GET.get("start2", "").lower()
     end1 = request.GET.get("end1", "").lower()
@@ -76,9 +90,9 @@ def route_planner(request):
     selected_locations = [loc for loc in selected_locations if loc in waypoints]  # Filter valid locations
 
     if len(selected_locations) == 4:
-        optimized_route = optimize_route(start1, start2, end1, end2, last_location)
+        optimized_route = optimize_route(prev_dest, start1, start2, end1, end2)
         route = get_route([waypoints[loc] for loc in optimized_route])
-        request.session["last_location"] = optimized_route[-1]  # Store last visited location
+        request.session["last_location"] = optimized_route[-1]  # Store last destination
     else:
         route = []
 
@@ -86,5 +100,5 @@ def route_planner(request):
         "locations": locations,
         "waypoints_json": json.dumps(waypoints),
         "route_json": json.dumps(route),
-        "last_location": last_location
+        "last_location": prev_dest
     })
