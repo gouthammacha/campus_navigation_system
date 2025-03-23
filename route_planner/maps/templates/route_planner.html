@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
     <style>
-        #map { height: 600px; }
+        #map { height: 750px; }
     </style>
 </head>
 <body>
@@ -31,7 +31,7 @@
 <div id="map"></div>
 
 <script>
-    let map = L.map('map').setView([17.282258, 78.553091], 18);
+    let map = L.map('map').setView([17.282259, 78.553090], 18);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     let waypoints = JSON.parse('{{ waypoints_json|escapejs }}');
