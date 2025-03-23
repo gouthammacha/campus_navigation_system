@@ -21,6 +21,12 @@ waypoints = {
     "main gate": (17.280449, 78.553885),
 }
 
+def get_distance(loc1, loc2):
+    """Calculate approximate distance using Euclidean method."""
+    lat1, lon1 = waypoints[loc1]
+    lat2, lon2 = waypoints[loc2]
+    return ((lat2 - lat1) ** 2 + (lon2 - lon1) ** 2) ** 0.5
+
 def get_route(coords):
     try:
         route = client.directions(
@@ -35,47 +41,31 @@ def get_route(coords):
     return None
 
 def optimize_route(prev_dest, start1, start2, end1, end2):
-    """Optimize route by considering the previous destination and efficient drop-offs."""
+    """Optimize route by moving to the nearest start location first, dropping off if the destination is nearby, then proceeding."""
     try:
-        locations = [start1, start2, end1, end2]
-        if prev_dest:
-            locations.insert(0, prev_dest)  # Start from previous destination if available
+        if not prev_dest:
+            prev_dest = start1  # Default start if no previous destination
 
-        response = client.optimization(
-            jobs=[
-                {"id": i, "location": [waypoints[loc][1], waypoints[loc][0]], "priority": 1 if i < 2 else 0}
-                for i, loc in enumerate(locations)
-            ],
-            vehicles=[{
-                "id": 0,
-                "profile": "foot-walking",
-                "start": [waypoints[locations[0]][1], waypoints[locations[0]][0]],
-                "capacity": [2],  # Can carry both passengers
-                "skills": [1],
-            }]
-        )
+        # Determine nearest start location first
+        start1_dist = get_distance(prev_dest, start1)
+        start2_dist = get_distance(prev_dest, start2)
+        if start1_dist < start2_dist:
+            first_start, second_start = start1, start2
+        else:
+            first_start, second_start = start2, start1
 
-        # Get optimized order
-        ordered_locations = [locations[job["id"]] for job in sorted(response["routes"][0]["steps"], key=lambda x: x["arrival"])]
+        # Check if first start's destination is closer than second start
+        first_start_dest = end1 if first_start == start1 else end2
+        second_start_dest = end1 if second_start == start1 else end2
+        if get_distance(first_start, first_start_dest) < get_distance(first_start, second_start):
+            ordered_route = [prev_dest, first_start, first_start_dest, second_start, second_start_dest]
+        else:
+            ordered_route = [prev_dest, first_start, second_start, first_start_dest, second_start_dest]
 
-        # Ensure intermediate drop-off if needed
-        optimized_order = []
-        picked_up = set()
-
-        for i, loc in enumerate(ordered_locations):
-            if loc in (start1, start2):  
-                picked_up.add(loc)  # Mark pickup as done
-            elif loc in (end1, end2):  
-                if (start1 in picked_up and loc == end1) or (start2 in picked_up and loc == end2):
-                    optimized_order.append(loc)  # Drop if picked up
-            optimized_order.append(loc)  
-
-        return optimized_order
-
+        return ordered_route
     except Exception as e:
         print(f"Route optimization error: {e}")
         return [prev_dest, start1, start2, end1, end2]  # Fallback order
-
 
 def route_planner(request):
     locations = [loc.title() for loc in waypoints.keys()]
