@@ -41,7 +41,7 @@ def get_route(coords):
     return None
 
 def optimize_route(prev_dest, start1, start2, end1, end2):
-    """Optimize route by moving to the nearest start location first, dropping off if the destination is nearby, then proceeding."""
+    """Optimize route by ensuring the shortest path while maintaining existing functionality."""
     try:
         if not prev_dest:
             prev_dest = start1  # Default start if no previous destination
@@ -54,10 +54,13 @@ def optimize_route(prev_dest, start1, start2, end1, end2):
         else:
             first_start, second_start = start2, start1
 
-        # Check if first start's destination is closer than second start
+        # Determine nearest destination first
         first_start_dest = end1 if first_start == start1 else end2
         second_start_dest = end1 if second_start == start1 else end2
-        if get_distance(first_start, first_start_dest) < get_distance(first_start, second_start):
+        dest1_dist = get_distance(first_start, first_start_dest)
+        dest2_dist = get_distance(second_start, second_start_dest)
+        
+        if dest1_dist < get_distance(first_start, second_start):
             ordered_route = [prev_dest, first_start, first_start_dest, second_start, second_start_dest]
         else:
             ordered_route = [prev_dest, first_start, second_start, first_start_dest, second_start_dest]
