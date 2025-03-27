@@ -41,7 +41,7 @@ def get_route(coords):
     return None
 
 def optimize_route(prev_dest, start1, start2, end1, end2):
-    """Optimize route by ensuring the shortest path while maintaining existing functionality."""
+    """Optimize route by ensuring the shortest path"""
     try:
         if not prev_dest:
             prev_dest = start1  # Default start if no previous destination
