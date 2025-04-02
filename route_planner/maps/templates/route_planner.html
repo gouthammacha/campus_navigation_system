@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
     <style>
         #map { height: 750px; }
+        .mic-btn { cursor: pointer; margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -16,15 +17,19 @@
 
 <label for="start1">Start 1:</label>
 <select id="start1"><option value="">Select Start 1</option></select>
+<button class="mic-btn" onclick="startVoiceRecognition('start1')">🎤</button>
 
 <label for="start2">Start 2:</label>
 <select id="start2"><option value="">Select Start 2</option></select>
+<button class="mic-btn" onclick="startVoiceRecognition('start2')">🎤</button>
 
 <label for="end1">Destination 1:</label>
 <select id="end1"><option value="">Select Destination 1</option></select>
+<button class="mic-btn" onclick="startVoiceRecognition('end1')">🎤</button>
 
 <label for="end2">Destination 2:</label>
 <select id="end2"><option value="">Select Destination 2</option></select>
+<button class="mic-btn" onclick="startVoiceRecognition('end2')">🎤</button>
 
 <button onclick="startNavigation()">Start Navigation</button>
 
@@ -38,7 +43,7 @@
     let route = JSON.parse('{{ route_json|escapejs }}');
     let lastLocation = "{{ last_location }}";
 
-    // Populate dropdowns
+    // Populate dropdowns with available locations
     let dropdowns = ["start1", "start2", "end1", "end2"];
     dropdowns.forEach(id => {
         let dropdown = document.getElementById(id);
@@ -65,7 +70,7 @@
         window.location.href = `?start1=${start1}&start2=${start2}&end1=${end1}&end2=${end2}`;
     }
 
-    // Display waypoints
+    // Display waypoints on the map
     Object.entries(waypoints).forEach(([name, [lat, lon]]) => {
         L.marker([lat, lon]).addTo(map).bindPopup(name);
     });
@@ -74,46 +79,116 @@
     let carMarker = null;
 
     function animateCar(route1, route2) {
-    if (!route1.length || !route2.length) return;
+        if (!route1.length || !route2.length) return;
 
-    let speed = 500; // Animation speed
+        let speed = 500; // Animation speed
 
-    // Draw both routes with different colors
-    let polyline1 = L.polyline(route1.map(([lat, lon]) => [lon, lat]), { color: "blue", weight: 5 }).addTo(map);
-    let polyline2 = L.polyline(route2.map(([lat, lon]) => [lon, lat]), { color: "red", weight: 5 }).addTo(map);
+        let polyline1 = L.polyline(route1.map(([lat, lon]) => [lon, lat]), { color: "blue", weight: 5 }).addTo(map);
+        let polyline2 = L.polyline(route2.map(([lat, lon]) => [lon, lat]), { color: "red", weight: 5 }).addTo(map);
 
-    let carMarker = L.marker([route1[0][1], route1[0][0]], { icon: carIcon }).addTo(map);
+        let carMarker = L.marker([route1[0][1], route1[0][0]], { icon: carIcon }).addTo(map);
 
-    function moveCar(route, polyline, index, callback) {
-        if (index >= route.length) {
-            if (callback) callback(); // Move to the next route
+        function moveCar(route, polyline, index, callback) {
+            if (index >= route.length) {
+                if (callback) callback();
+                return;
+            }
+
+            carMarker.setLatLng([route[index][1], route[index][0]]);
+
+            let newPath = route.slice(index);
+            polyline.setLatLngs(newPath.map(([lat, lon]) => [lon, lat]));
+
+            setTimeout(() => moveCar(route, polyline, index + 1, callback), speed);
+        }
+
+        moveCar(route1, polyline1, 0, () => moveCar(route2, polyline2, 0, null));
+    }
+
+    if (route.length >= 2) {
+        let midIndex = Math.floor(route.length / 2);
+        let route1 = route.slice(0, midIndex);
+        let route2 = route.slice(midIndex);
+        animateCar(route1, route2);
+    }
+
+    // **Voice Recognition Feature**
+    function startVoiceRecognition(targetDropdown) {
+        if (!('webkitSpeechRecognition' in window)) {
+            alert("Your browser does not support speech recognition.");
             return;
         }
 
-        // Update car position
-        carMarker.setLatLng([route[index][1], route[index][0]]);
+        let recognition = new webkitSpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.start();
 
-        // Remove past polyline points to simulate gradual disappearance
-        let newPath = route.slice(index); // Keep only the remaining part of the route
-        polyline.setLatLngs(newPath.map(([lat, lon]) => [lon, lat]));
+        recognition.onresult = function(event) {
+            let spokenText = event.results[0][0].transcript.trim().toLowerCase();
+            console.log("Recognized:", spokenText);
 
-        setTimeout(() => moveCar(route, polyline, index + 1, callback), speed);
+            // Find the closest matching location
+            let locationNames = Object.keys(waypoints);
+            let bestMatch = findClosestMatch(spokenText, locationNames);
+
+            if (bestMatch) {
+                document.getElementById(targetDropdown).value = bestMatch;
+            } else {
+                alert("No matching location found. Please try again.");
+            }
+        };
+
+        recognition.onerror = function(event) {
+            alert("Error recognizing speech. Try again.");
+        };
     }
 
-    // Move car on the first route, then move on the second route
-    moveCar(route1, polyline1, 0, () => moveCar(route2, polyline2, 0, null));
-}
+    // **Find the Closest Matching Location**
+    function findClosestMatch(input, locations) {
+        input = input.toLowerCase();
+        let bestMatch = null;
+        let bestScore = Infinity;
 
-// Ensure we have two separate routes
-if (route.length >= 2) {
-    let midIndex = Math.floor(route.length / 2);
-    let route1 = route.slice(0, midIndex);
-    let route2 = route.slice(midIndex);
-    animateCar(route1, route2);
-}
+        locations.forEach(location => {
+            let score = levenshteinDistance(input, location.toLowerCase());
+            if (score < bestScore) {
+                bestScore = score;
+                bestMatch = location;
+            }
+        });
+
+        return bestMatch;
+    }
+
+    // **Levenshtein Distance Algorithm** (to compare spoken words with location names)
+    function levenshteinDistance(a, b) {
+        let matrix = [];
+        let i, j;
+
+        if (!a.length) return b.length;
+        if (!b.length) return a.length;
+
+        for (i = 0; i <= b.length; i++) {
+            matrix[i] = [i];
+        }
+        for (j = 0; j <= a.length; j++) {
+            matrix[0][j] = j;
+        }
+
+        for (i = 1; i <= b.length; i++) {
+            for (j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+                }
+            }
+        }
+
+        return matrix[b.length][a.length];
+    }
 
 </script>
-
 
 </body>
 </html>
