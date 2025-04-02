@@ -85,6 +85,7 @@ def optimize_route(prev_dest, start1, start2, end1, end2):
         print(f"Route optimization error: {e}")
         return [prev_dest, start1, start2, end1, end2]  # Fallback order
 
+
 def route_planner(request):
     locations = [loc.title() for loc in waypoints.keys()]
     prev_dest = request.session.get("last_location", None)

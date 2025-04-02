@@ -79,39 +79,54 @@
     let carMarker = null;
 
     function animateCar(route1, route2) {
-        if (!route1.length || !route2.length) return;
+    if (!route1.length || !route2.length) return;
 
-        let speed = 500; // Animation speed
+    let speed = 0.05; // Adjusted for smooth animation
+    let carMarker = L.marker([route1[0][1], route1[0][0]], { icon: carIcon }).addTo(map);
+    let polyline1 = L.polyline(route1.map(([lat, lon]) => [lon, lat]), { color: "blue", weight: 6 }).addTo(map);
+    let polyline2 = L.polyline(route2.map(([lat, lon]) => [lon, lat]), { color: "red", weight: 6 }).addTo(map);
 
-        let polyline1 = L.polyline(route1.map(([lat, lon]) => [lon, lat]), { color: "blue", weight: 5 }).addTo(map);
-        let polyline2 = L.polyline(route2.map(([lat, lon]) => [lon, lat]), { color: "red", weight: 5 }).addTo(map);
-
-        let carMarker = L.marker([route1[0][1], route1[0][0]], { icon: carIcon }).addTo(map);
-
-        function moveCar(route, polyline, index, callback) {
-            if (index >= route.length) {
-                if (callback) callback();
-                return;
-            }
-
-            carMarker.setLatLng([route[index][1], route[index][0]]);
-
-            let newPath = route.slice(index);
-            polyline.setLatLngs(newPath.map(([lat, lon]) => [lon, lat]));
-
-            setTimeout(() => moveCar(route, polyline, index + 1, callback), speed);
+    function moveCar(route, polyline, index, callback) {
+        if (index >= route.length - 1) {
+            if (callback) callback();
+            return;
         }
 
-        moveCar(route1, polyline1, 0, () => moveCar(route2, polyline2, 0, null));
+        let [lat1, lon1] = route[index];
+        let [lat2, lon2] = route[index + 1];
+        let progress = 0;
+        let totalSteps = 100; // Increase steps for smooth movement
+        let stepSize = 1 / totalSteps;
+
+        function step() {
+            if (progress >= 1) {
+                moveCar(route, polyline, index + 1, callback);
+                return;
+            }
+            
+            let lat = lat1 + (lat2 - lat1) * progress;
+            let lon = lon1 + (lon2 - lon1) * progress;
+            carMarker.setLatLng([lon, lat]);
+            
+            let remainingPath = route.slice(index + 1);
+            remainingPath.unshift([lat, lon]); // Keep updating the polyline dynamically
+            polyline.setLatLngs(remainingPath.map(([lat, lon]) => [lon, lat]));
+            
+            progress += stepSize;
+            requestAnimationFrame(step);
+        }
+        step();
     }
 
-    if (route.length >= 2) {
-        let midIndex = Math.floor(route.length / 2);
-        let route1 = route.slice(0, midIndex);
-        let route2 = route.slice(midIndex);
-        animateCar(route1, route2);
-    }
+    moveCar(route1, polyline1, 0, () => moveCar(route2, polyline2, 0, null));
+}
 
+if (route.length >= 2) {
+    let midIndex = Math.floor(route.length / 2);
+    let route1 = route.slice(0, midIndex);
+    let route2 = route.slice(midIndex);
+    animateCar(route1, route2);
+}
     // **Voice Recognition Feature**
     function startVoiceRecognition(targetDropdown) {
         if (!('webkitSpeechRecognition' in window)) {
