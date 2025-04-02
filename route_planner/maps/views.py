@@ -41,76 +41,45 @@ def get_route(coords):
     return None
 
 def optimize_route(prev_dest, start1, start2, end1, end2):
-    """Optimizes the route dynamically for an autonomous vehicle in a campus:
-    - Picks up passengers from start locations before reaching destinations.
-    - If a destination is on the way to another start location, visit it first.
-    - Ensures shortest path selection at every step to minimize unnecessary backtracking.
-    """
+    """Dynamically optimizes the route by choosing the closest location at each step."""
     try:
         if not prev_dest:
             prev_dest = start1  # Default start if no previous destination
 
-        # Store locations and their respective destinations
-        locations = {start1: end1, start2: end2}
+        locations = {
+            start1: end1,
+            start2: end2
+        }
         visited = set()
         route = [prev_dest]
+
+        # Find the nearest start location
         current_location = prev_dest
         remaining_starts = [start1, start2]
-        remaining_destinations = [end1, end2]
 
-        # Remove duplicate entries if start1 == end2 or start2 == end1
-        if start1 == end2:
-            remaining_destinations.remove(end2)
-        if start2 == end1:
-            remaining_destinations.remove(end1)
-
-        # Step 1: Visit all start locations first
         while remaining_starts:
-            # Choose the nearest start location
+            # Sort based on distance from current location
             remaining_starts.sort(key=lambda loc: get_distance(current_location, loc))
             next_start = remaining_starts.pop(0)
-            route.append(next_start)
             visited.add(next_start)
+            route.append(next_start)
+
+            # Find the nearest option: its destination or the other start location
             destination = locations[next_start]
-            current_location = next_start  # Move to start location
+            other_start = remaining_starts[0] if remaining_starts else None
 
-            # Step 3: If the destination is on the way to the next start, visit it
-            if remaining_starts:
-                next_possible_start = remaining_starts[0]
-                if (destination in remaining_destinations and
-                    get_distance(current_location, destination) < get_distance(current_location, next_possible_start) and
-                    get_distance(destination, next_possible_start) < get_distance(current_location, next_possible_start)):
-                    
-                    # Visit the destination first if it is on the way
-                    route.append(destination)
-                    visited.add(destination)
-                    current_location = destination
-                    remaining_destinations.remove(destination)
-
-        # Step 4: Visit remaining destinations ensuring no backtracking
-        while remaining_destinations:
-            # Choose the nearest destination
-            remaining_destinations.sort(key=lambda loc: get_distance(current_location, loc))
-            next_dest = remaining_destinations.pop(0)
-
-            # If another destination is on the way, visit it first
-            if remaining_destinations:
-                possible_next_dest = remaining_destinations[0]
-                if (get_distance(current_location, next_dest) < get_distance(current_location, possible_next_dest) and
-                    get_distance(next_dest, possible_next_dest) < get_distance(current_location, possible_next_dest)):
-                    
-                    # If next_dest is on the way to possible_next_dest, visit it first
-                    route.append(next_dest)
-                    visited.add(next_dest)
-                    current_location = next_dest
-                    remaining_destinations.remove(next_dest)
-
-            # Finally, visit the next destination
-            if next_dest not in visited:
-                route.append(next_dest)
-                visited.add(next_dest)
-                current_location = next_dest
-
+            if other_start and get_distance(next_start, other_start) < get_distance(next_start, destination):
+                # If the other start is closer than the destination, go there first
+                route.append(other_start)
+                visited.add(other_start)
+                remaining_starts.remove(other_start)
+                destination = locations[other_start]  # Now update to its destination
+            
+            # Visit the final destination
+            route.append(destination)
+            visited.add(destination)
+            current_location = destination  # Move to the new location
+        
         return route
     except Exception as e:
         print(f"Route optimization error: {e}")
