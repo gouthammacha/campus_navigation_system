@@ -7,13 +7,73 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
     <style>
-        #map { height: 750px; }
-        .mic-btn { cursor: pointer; margin-left: 10px; }
+       body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    text-align: center;
+    padding: 20px;
+}
+
+h2 {
+    color: #333;
+}
+
+label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+select {
+    padding: 8px;
+    margin: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    position: relative;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+.mic-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.mic-btn:hover {
+    color: #007bff;
+}
+
+#map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+    z-index: -1;
+}
+
     </style>
 </head>
 <body>
 
-<h2>Route Planner</h2>
+<h2>Campus Route Navigation</h2>
 
 <label for="start1">Start 1:</label>
 <select id="start1"><option value="">Select Start 1</option></select>
