@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: campus-navigation
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn route_planner.wsgi:application
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: route_planner.settings
+      - key: PYTHON_VERSION
+        value: 3.11
