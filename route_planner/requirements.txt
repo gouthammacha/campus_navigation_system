@@ -1,6 +1,3 @@
 Django>=3.2,<5.0
 openrouteservice>=2.3.0
-<<<<<<< HEAD
-gunicorn>=20.1.0  # Only needed for deployment (e.g., Heroku/Render)
-=======
->>>>>>> 8b9afd0fe2db66ad05ac43fe45a3c2ad0e48ca8e
+gunicorn>=20.1.0  
